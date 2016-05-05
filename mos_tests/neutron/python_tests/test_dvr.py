@@ -97,22 +97,22 @@ class TestDVRBase(base.TestBase):
              sleep_seconds=10,
              waiting_for="hypervisors on {0} are alive".format(hostnames))
 
-    def find_snat_controller(self, router_id, excluded=()):
+    def find_snat_controller(self, router_id, excluded=(), alive_only=False):
         """Find controller with SNAT service.
 
         :param router_id: router id to find SNAT for it
         :param excluded: excluded nodes fqdns
         :returns: controller node with SNAT
         """
-        all_controllers = self.env.get_nodes_by_role('controller')
-        for controller in all_controllers:
-            if controller.data['fqdn'] in excluded:
-                continue
-            with controller.ssh() as remote:
-                cmd = 'ip net | grep snat-{}'.format(router_id)
-                res = remote.execute(cmd)
-                if res['exit_code'] == 0:
-                    return controller
+        agents_with_snat = self.os_conn.neutron.list_l3_agent_hosting_routers(
+            router_id)['agents']
+        assert len(agents_with_snat) == 1
+        agent_with_snat = agents_with_snat[0]
+        if alive_only and not agent_with_snat['alive']:
+            return
+        if agent_with_snat['host'] in excluded:
+            return
+        return self.env.find_node_by_fqdn(agent_with_snat['host'])
 
     def shut_down_br_ex_on_controllers(self):
         """Shut down br-ex for all controllers"""
