@@ -2,7 +2,7 @@
 
 . openrc
 
-screen -S META_SIG -d -m -- sh -c 'tailf /var/log/neutron/metadata-agent.log > log_metadat'
+screen -S META_SIG -d -m -- sh -c 'tail -f /var/log/neutron/metadata-agent.log | tee log_metadat'
 TEST_FAILED=0
 echo "Get a pid of a process for metada-agent"
 string1=$(pstree -up | grep metadat | awk '{print $1}')

@@ -2,7 +2,7 @@
 
 . openrc
 
-screen -S DHCP_SIG -d -m -- sh -c 'tailf /var/log/neutron/dhcp-agent.log > log_dhcp'
+screen -S DHCP_SIG -d -m -- sh -c 'tail -f /var/log/neutron/dhcp-agent.log | tee log_dhcp'
 TEST_FAILED=0
 echo "Get a pid of a process for dhcp-agent"
 pid_before=$(ps -aux | grep -v root | grep neutron-dhcp-agent | awk '{print $2}')

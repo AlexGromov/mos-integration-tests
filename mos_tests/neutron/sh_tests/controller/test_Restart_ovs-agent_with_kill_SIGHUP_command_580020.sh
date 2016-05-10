@@ -2,7 +2,7 @@
 
 . openrc
 
-screen -S OVS_SIG -d -m -- sh -c 'tailf /var/log/neutron/openvswitch-agent.log > log_ovs'
+screen -S OVS_SIG -d -m -- sh -c 'tail -f /var/log/neutron/openvswitch-agent.log | tee log_ovs'
 TEST_FAILED=0
 echo "Get a pid of a process for ovs-agent"
 pid_before=$(ps -aux | grep -v root | grep neutron-openvswitch-agent | awk '{print $2}')

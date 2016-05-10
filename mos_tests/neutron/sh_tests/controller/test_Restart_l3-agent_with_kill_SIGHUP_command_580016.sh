@@ -2,7 +2,7 @@
 
 . openrc
 
-screen -S l3_SIG -d -m -- sh -c 'tailf /var/log/neutron/l3-agent.log > log_l3'
+screen -S l3_SIG -d -m -- sh -c 'tail -f /var/log/neutron/l3-agent.log | tee log_l3'
 TEST_FAILED=0
 echo "Get a pid of a process for l3-agent"
 pid_before=$(ps -aux | grep -v root | grep neutron-l3-agent | awk '{print $2}')
