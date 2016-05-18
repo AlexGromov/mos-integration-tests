@@ -99,15 +99,18 @@ class TestRestarts(TestBase):
     def check_no_routers_on_l3_agent(self, l3_agent_id):
         """Check that no routers on l3 agent, else fail"""
         __tracebackhide__ = True
-
-        routers_on_agent = self.os_conn.neutron.list_routers_on_l3_agent(
-            l3_agent_id)['routers']
-        if len(routers_on_agent) > 0:
-            pytest.fail("There are routers on l3_agent({0}):\n{1}".format(
-                l3_agent_id,
-                '\n'.join(
-                    '{name}({id})'.format(**r) for r in routers_on_agent)
-            ))
+        wait(len(self.os_conn.neutron.list_routers_on_l3_agent(
+                     l3_agent_id)['routers']) == 0,
+             timeout_seconds=3 * 60,
+             waiting_for='no routers on l3 agent')
+        # routers_on_agent = self.os_conn.neutron.list_routers_on_l3_agent(
+        #     l3_agent_id)['routers']
+        # if len(routers_on_agent) > 0:
+        #     pytest.fail("There are routers on l3_agent({0}):\n{1}".format(
+        #         l3_agent_id,
+        #         '\n'.join(
+        #             '{name}({id})'.format(**r) for r in routers_on_agent)
+        #     ))
 
     @pytest.mark.check_env_('not(is_l3_ha) and not(is_dvr)')
     @pytest.mark.testrail_id('542612')
