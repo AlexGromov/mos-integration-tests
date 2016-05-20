@@ -203,10 +203,24 @@ class TestL3HA(TestBase):
         """
 
         def new_active_agent():
-            agents = self.get_active_l3_agents_for_router(router_id)
-            new_agents = [x for x in agents if x['host'] != from_node]
-            if len(new_agents) == 1:
-                return new_agents[0]
+            # agents = self.get_active_l3_agents_for_router(router_id)
+            # new_agents = [x for x in agents if x['host'] != from_node]
+            # if len(new_agents) == 1:
+            #     return new_agents[0]
+            nodes_with_active_agt = []
+            for node in self.env.get_nodes_by_role('controller'):
+                try:
+                    with node.ssh() as remote:
+                        res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                        if "master" in res['stdout']:
+                            nodes_with_active_agt.append(node)
+                except Exception:
+                    logger.info("Not found")
+
+            logger.info("nodes with active agent: {}".format(
+                [x.data['fqdn'] for x in nodes_with_active_agt]))
+
+            return len(nodes_with_active_agt) > 0
 
         return wait(new_active_agent, timeout_seconds=timeout_seconds,
                     expected_exceptions=(InternalServerError,),
@@ -401,9 +415,28 @@ class TestL3HA(TestBase):
             9. Wait time while env is unstable
             10. Check ping
         """
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    logger.info("node: {0}, state: {1}".format(node.data['fqdn'], res['stdout']))
+            except Exception:
+                logger.info("Not found")
+
         router_id = router['router']['id']
-        agents = self.get_active_l3_agents_for_router(router_id)
-        l3_agent_controller = self.env.find_node_by_fqdn(agents[0]['host'])
+        # agents = self.get_active_l3_agents_for_router(router_id)
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    if "master" in res['stdout']:
+                        break
+            except Exception:
+                logger.info("Not found")
+        else:
+            raise Exception("l3 agent was not found")
+        l3_agent_controller = node
+        # l3_agent_controller = self.env.find_node_by_fqdn(agents[0]['host'])
         primary_controller = self.env.primary_controller
         other_controllers = [x for x
                              in self.env.get_nodes_by_role('controller')
@@ -425,6 +458,14 @@ class TestL3HA(TestBase):
                         'pcs resource clear p_neutron-l3-agent {}'.format(
                             node.data['fqdn']))
 
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    logger.info("node: {0}, state: {1}".format(node.data['fqdn'], res['stdout']))
+            except Exception:
+                logger.info("Not found")
+
         server1 = self.os_conn.nova.servers.find(name="server01")
         server2 = self.os_conn.nova.servers.find(name="server02")
         server2_ip = self.os_conn.get_nova_instance_ips(server2)['floating']
@@ -435,9 +476,25 @@ class TestL3HA(TestBase):
             env_name=env_name, mac=primary_controller.data['mac'])
         devops_node.destroy()
 
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    logger.info("node: {0}, state: {1}".format(node.data['fqdn'], res['stdout']))
+            except Exception:
+                logger.info("Not found")
+
         self.wait_router_rescheduled(router_id=router['router']['id'],
                                      from_node=primary_controller.data['fqdn'],
                                      timeout_seconds=5 * 60)
+
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    logger.info("node: {0}, state: {1}".format(node.data['fqdn'], res['stdout']))
+            except Exception:
+                logger.info("Not found")
 
         self.check_ping_from_vm(vm=server1, vm_keypair=self.instance_keypair,
                                 ip_to_ping=server2_ip)
@@ -811,9 +868,31 @@ class TestL3HA(TestBase):
             10. Check ping
             11. One agent has ACTIVE ha_state, others (2) has STAND BY ha_state
         """
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    if "master" in res['stdout']:
+                        break
+            except Exception:
+                logger.info("Not found")
+        else:
+            raise Exception("l3 agent was not found")
+
         router_id = router['router']['id']
-        agents = self.get_active_l3_agents_for_router(router_id)
-        l3_agent_controller = self.env.find_node_by_fqdn(agents[0]['host'])
+        # agents = self.get_active_l3_agents_for_router(router_id)
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    if "master" in res['stdout']:
+                        break
+            except Exception:
+                logger.info("Not found")
+        else:
+            raise Exception("l3 agent was not found")
+        l3_agent_controller = node
+        # l3_agent_controller = self.env.find_node_by_fqdn(agents[0]['host'])
         primary_controller = self.env.primary_controller
         for node in self.env.get_nodes_by_role('controller'):
             if node != primary_controller:
@@ -829,6 +908,17 @@ class TestL3HA(TestBase):
         self.reschedule_active_l3_agt(router_id, primary_controller,
                                       l3_agent_controller)
 
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    if "master" in res['stdout']:
+                        break
+            except Exception:
+                logger.info("Not found")
+        else:
+            raise Exception("l3 agent was not found")
+
         logger.info("Reset primary controller {}".format(
             primary_controller.data['fqdn']))
         devops_node = DevopsClient.get_node_by_mac(
@@ -839,8 +929,18 @@ class TestL3HA(TestBase):
         self.wait_router_rescheduled(router_id=router_id,
                                      from_node=primary_controller.data['fqdn'],
                                      timeout_seconds=5 * 60)
+        for node in self.env.get_nodes_by_role('controller'):
+            try:
+                with node.ssh() as remote:
+                    res = remote.check_call("cat /var/lib/neutron/ha_confs/{0}/state".format(router_id))
+                    if "master" in res['stdout']:
+                        break
+            except Exception:
+                logger.info("Not found")
+        else:
+            raise Exception("l3 agent was not found")
 
         self.check_ping_from_vm(vm=server1, vm_keypair=self.instance_keypair,
                                 ip_to_ping=server2_ip)
 
-        self.check_l3_ha_agent_states(router_id)
+        # self.check_l3_ha_agent_states(router_id)
