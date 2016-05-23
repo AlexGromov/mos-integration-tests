@@ -236,7 +236,7 @@ class TestDVR(TestDVRBase):
             5. Find node with snat for router1:
                 ip net | grep snat-<id_router> on each controller
             6. If node with snat isn't the primary controller
-                (pcs cluster status), manually recshedule router:
+                (pcs cluster status), manually reschedule router:
                 neutron l3-agent-router-remove agent_id_where_is_snat router1
                 neutron l3-agent-network-add on_primary_agent_id router1
                 and wait some time while snat is rescheduling
@@ -260,10 +260,11 @@ class TestDVR(TestDVRBase):
                           if x['host'] == controller_with_snat.data['fqdn']][0]
             new_l3_agent = [x for x in l3_agents
                             if x['host'] == leader_controller.data['fqdn']][0]
-            self.os_conn.remove_router_from_l3_agent(router_id=self.router_id,
-                l3_agent_id=snat_agent['id'])
-            self.os_conn.add_router_to_l3_agent(router_id=self.router_id,
-                l3_agent_id=new_l3_agent['id'])
+
+            self.os_conn.force_l3_reschedule(
+                router_id=self.router_id,
+                new_l3_agt_id=new_l3_agent['id'],
+                current_l3_agt_id=snat_agent['id'])
 
         devops_node = DevopsClient.get_node_by_mac(
             env_name=env_name, mac=leader_controller.data['mac'])
@@ -273,8 +274,7 @@ class TestDVR(TestDVRBase):
             lambda: self.find_snat_controller(
                 self.router_id,
                 excluded=[leader_controller.data['fqdn']]),
-            timeout_seconds=60 * 3,
-            sleep_seconds=(1, 60, 5),
+            timeout_seconds=60 * 5,
             waiting_for="snat is rescheduled")
 
         assert (
