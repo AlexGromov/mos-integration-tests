@@ -59,6 +59,7 @@ def image_factory(url):
             image.id,
             murano_image_info='{"type": "linux.kubernetes", '
                               '"title": "%s"}' % name)
+        os_conn.wait_images_active([image])
         yield image
 
         if len(exists) == 0:
